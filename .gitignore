@@ -1,1 +1,13 @@
 .DS_Store
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# The dedicated venv lives outside the repo (~/.cache/ultra-fetch/venv) and is
+# never committed. This entry only catches a stray local one.
+.venv/
+venv/
+
+# Scratch: e2e transcripts and any fetched-page artifacts a session saves here.
+.e2e-runs/
+.tmp/
