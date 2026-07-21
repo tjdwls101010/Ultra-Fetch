@@ -126,6 +126,16 @@ PRUNE_PRESERVE_TAGS = [
     # three real pages: 4->17, 4->10 and 0->2 headings, for under 300 extra
     # characters each.
     "h1", "h2", "h3", "h4", "h5", "h6",
+    # <dt> is the label half of a definition list, which is how every Sphinx and
+    # javadoc-style API reference renders a parameter name above its
+    # description. It is one word by construction, so it lost the
+    # min-word check while the <dd> beneath it survived -- leaving a page of
+    # anonymous descriptions that still reads as complete, which is the most
+    # dangerous shape this failure can take. Measured on polars' read_csv page:
+    # 1 of 10 parameter names survived, 10 of 10 with this. Unlike whitelisting
+    # <li>, this costs nothing anywhere else -- +737 chars on the API page and
+    # +0 on an article, a docs guide, a Korean news post and a forum board.
+    "dt",
 ]
 
 # BM25: higher = fewer, more relevant chunks. 1.0 is crawl4ai's default and is

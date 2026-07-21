@@ -1,6 +1,6 @@
 # Harness Spec — Ultra Fetch
 
-> Status: **validated** (generated 2026-07-21; hardened 2026-07-22 through a 4-round e2e improvement loop, 17/18 scenarios PASS). Detailed implementation brief lives in `docs/plan/` (read 00→06). This spec is the canonical anchor a future harness-creator invocation audits against.
+> Status: **validated** (generated 2026-07-21; hardened 2026-07-22 through a 5-round e2e improvement loop, 20/20 scenarios PASS). Detailed implementation brief lives in `docs/plan/` (read 00→06). This spec is the canonical anchor a future harness-creator invocation audits against.
 
 ## Context
 
@@ -107,7 +107,19 @@ The loop found five defects that unit tests could not, all of them silent:
 
 Defect 5 is the instructive one for future maintenance: the rule was *correct* in round 2 and still failed, because it was framed under a WebSearch-specific heading and so read as inapplicable when no search had run, and its negative examples were all English read/verify phrasings that a Korean neutral-register sentence slid past. Fixing it meant converting a rhetorical prohibition into a checkable output-shape gate — evidence for the harness-creator principle that a rule survives only where the model can re-derive it, and that examples teach pattern-matching unless the principle is stated in its own right.
 
-Final scenario state (each in its most recent run): **17 of 18 PASS.** The exception is a scenario-design flaw, not a harness defect — RS1 asked for crawl4ai's filter parameters while crawl4ai is installed in this repo's own venv, so reading the local source was the more authoritative answer and the model correctly routed around the tool.
+### Round 5 — closing the two gaps that had been labelled rather than fixed
+
+The loop was initially stopped with two items described as out of scope. Both were in fact testable, and describing a gap is not closing it, so both were closed:
+
+- **`--wait-selector` was never exercised against a real SPA.** Testing it found a real defect: a selector that never matches is not an error to the fetcher — it waits out the timeout (measured 63s vs 3.4s for a matching selector) and returns the page anyway, so the CLI reported success while the content the caller waited for was absent. Now detected via `response.css(selector)` and warned, with two unit tests. This is exactly the kind of silent failure the tool exists to prevent, and it survived only because the path was documented as untested instead of being tested.
+- **The one non-passing scenario was called a design flaw and left there.** Redesigned against a library absent from the machine (`polars`) so fetching is genuinely required, and re-run: **PASS**, with 62 intact inline-code spans and all 34 parameters verified against the artifact, zero inventions.
+
+That redesign then surfaced a further defect and one accepted limit:
+
+- **Fixed — `<dt>` labels.** Every Sphinx-style API reference renders a parameter as `<dt>name</dt><dd>description</dd>`. A `<dt>` is one word by construction, so it failed the min-word check while its description survived, leaving a page of *anonymous descriptions that still read as complete*. Measured on polars' `read_csv`: 1 of 10 names survived, 34 of 34 after whitelisting `dt`, at +737 chars on that page and **+0** on an article, a docs guide, a Korean news post and a forum board.
+- **Accepted limit — signature defaults.** Default values live in the function signature, which filtering still drops. Whitelisting `<span>` was tried and rejected on measurement: it did not recover the signature and cost +23% on a forum board. The model already handles this correctly by re-fetching with `--no-filter` (verified in R5A), and SKILL.md now names the symptom — labels present, values missing — so the remedy is reached directly rather than rediscovered.
+
+Final scenario state (each in its most recent run): **20 of 20 PASS.** Unit tests 36 → 39. Every CLI code path is now exercised against a real site.
 
 ## Change history
 

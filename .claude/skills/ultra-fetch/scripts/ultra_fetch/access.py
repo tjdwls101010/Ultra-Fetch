@@ -26,6 +26,9 @@ class FetchResult:
     tier: str  # "fast" | "stealth"
     status: int
     escalated_because: str | None = None
+    # Set to the selector when --wait-selector was given and never matched, so
+    # the caller can be told the thing it waited for never appeared.
+    selector_missing: str | None = None
 
 
 def _visible_text(html: str) -> str:
@@ -106,12 +109,18 @@ def _fetch_fast(url: str, timeout: int) -> FetchResult:
     return FetchResult(html=str(response.html_content), tier="fast", status=response.status)
 
 
-def _fetch_stealth(
-    url: str, timeout: int, wait_selector: str | None, solve_cloudflare: bool
-) -> FetchResult:
+def _stealth_fetcher():
+    """Import seam: keeps the browser import lazy and lets tests substitute it."""
     from scrapling.fetchers import StealthyFetcher
 
     silence_library_logging()  # after the import -- see the note in output.py
+    return StealthyFetcher
+
+
+def _fetch_stealth(
+    url: str, timeout: int, wait_selector: str | None, solve_cloudflare: bool
+) -> FetchResult:
+    fetcher = _stealth_fetcher()
 
     # scrapling's browser fetchers take milliseconds while its HTTP fetcher takes
     # seconds. Our CLI is seconds-everywhere (one unit for Claude to reason
@@ -132,7 +141,7 @@ def _fetch_stealth(
         kwargs["wait_selector"] = wait_selector
 
     try:
-        response = StealthyFetcher.fetch(url, **kwargs)
+        response = fetcher.fetch(url, **kwargs)
     except Exception as exc:
         raise AccessError(
             f"stealth fetch of {url} failed: {exc}",
@@ -141,7 +150,23 @@ def _fetch_stealth(
             "scrapling does not document support for.",
         ) from exc
 
-    return FetchResult(html=str(response.html_content), tier="stealth", status=response.status)
+    result = FetchResult(html=str(response.html_content), tier="stealth", status=response.status)
+
+    # Waiting for a selector that never arrives is not an error to the fetcher:
+    # it waits out the timeout and hands back whatever the page had. Silently
+    # succeeding is the wrong answer, because the caller asked to wait for
+    # something specific -- they believe that content is in the result. Say so,
+    # rather than letting a page missing the very thing that was waited for pass
+    # as a normal fetch.
+    if wait_selector:
+        try:
+            matched = len(response.css(wait_selector))
+        except Exception:
+            matched = None  # an invalid selector expression; not worth failing over
+        if matched == 0:
+            result.selector_missing = wait_selector
+
+    return result
 
 
 def fetch_html(
