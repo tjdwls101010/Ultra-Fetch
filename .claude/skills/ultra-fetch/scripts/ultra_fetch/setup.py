@@ -23,7 +23,20 @@ REQUIREMENTS = Path(__file__).resolve().parent.parent / "requirements.txt"
 
 def _run(command: list[str], description: str) -> subprocess.CompletedProcess:
     output.summarize(f"ultra-fetch setup: {description}...")
-    result = subprocess.run(command, capture_output=True, text=True)
+    try:
+        result = subprocess.run(command, capture_output=True, text=True)
+    except FileNotFoundError as exc:
+        # The executable itself is missing, which is what a half-finished or
+        # damaged install looks like -- precisely the case exit 2 exists for.
+        # Letting this escape as a traceback returned exit 1 instead, so the
+        # skill's own advice ("on exit 2, run setup --browsers") misrouted at
+        # exactly the moment it was needed.
+        raise SetupError(
+            f"{description} failed: {command[0]} is missing from the environment",
+            hint="The venv exists but is incomplete. Re-run `ultra-fetch setup --browsers`; "
+            "if that keeps failing, delete the venv directory and let it rebuild.",
+        ) from exc
+
     if result.returncode != 0:
         tail = (result.stderr or result.stdout or "").strip().splitlines()[-5:]
         raise SetupError(
