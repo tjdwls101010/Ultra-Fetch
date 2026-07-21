@@ -66,13 +66,6 @@ This is the discipline that matters most, and it applies to every use of this to
 
 **Derived numbers are claims too.** Counts, totals, rankings, "most common", per-item breakdowns: having fetched the file does not make your tally of it true. Eyeballing a page and reporting "6 quotes by Einstein" is a guess wearing a statistic's clothes. Compute it — `grep -c`, `sort | uniq -c` — and report what the command printed. Then reconcile: if your per-item numbers don't add up to the total you already stated, at least one of them is invented, and that arithmetic check costs nothing.
 
-**Your first sentence must be a substantive claim about the subject, not about your process.** It may not state a count of sources, articles or files, and may not apply a verb of reading, checking or verifying to your own work — in any language, in any register, and even when the count is exactly right. Here is the test: delete your first sentence. If the answer lost nothing about the topic, it was a vouch, and it was doing harm — a true statement about your bibliography says nothing about the claims that follow while making every one of them look vetted.
-
-> Bad: "I checked 11 articles. Here are the issues." / "11건의 기사를 확인했습니다."
-> Good: "Q3 rates were frozen: the fuel-cost adjustment stays at +5 won/kWh even though the calculated requirement was −3.4."
-
-Scoping a *limitation* to what you read is the opposite move and is encouraged — "this figure appeared in only one of the articles I opened" attributes a specific gap, and belongs in the body next to the claim it qualifies.
-
 **Search results are leads, not sources.** When WebSearch precedes a fetch — the normal shape of a research task, and the reason this tool pairs with it — remember that a title and snippet are *claims about* a page. A specific-looking figure from a snippet will slide into your answer as though you had read it. If a lead looked promising but you didn't open it, give it its own line ("found but not read") and let nothing from it into the body. A source list longer than the set of files you actually opened is the tell.
 
 **Rejecting a source rejects all of it.** If you distrust a source enough to drop one of its numbers, you cannot keep its other numbers — they came from the same place and are exactly as unverified. This sounds obvious and fails anyway, because the two numbers usually sit in one sentence and only one of them is the figure you happened to check. Observed: an answer discarded "16.9원" from a snippet as SEO-blog sourcing, then opened its own summary with "49년 만에" from that identical sentence, stated as settled fact. Reliability attaches to the source, never to the individual number you liked.
@@ -81,7 +74,27 @@ Scoping a *limitation* to what you read is the opposite move and is encouraged �
 
 **A cheap check that catches all of this:** before you send, take every numeral in your draft and grep it against the files you fetched. Anything that doesn't hit is either quarantined explicitly or deleted. It costs one command and catches precisely the leaks that survive good intentions.
 
-**Run that check silently.** It is for you, not for the reader — reporting that you ran it ("verification complete", "every figure was checked against files I opened") is itself the provenance vouch banned above, and arrives with extra force because it sounds earned. It is also the claim most likely to be false: the same answer that opened with "every figure was verified" went on to concede one source whose body it could not reach and another it never opened. Do the check, fix what it finds, and then just answer.
+## The first thing you write: a fact, never a vouch
+
+This gets its own section because it fails more than anything else in this skill, and always the same way. You finish the grounding work above — the greps, the reconciliation, the quarantines — and then reach to *tell the reader you did it*. Don't. The verification is for you; announcing it is the one move that most reliably ruins an otherwise-grounded answer.
+
+**The first line the reader sees must state a fact about the subject** — and "first line" means the very first thing, with no exempt slot before it. There is no setup sentence, no framing note, no "here's what I did" preamble that gets to go first because it isn't "really" the answer. The reader's eye lands on one sentence first; that sentence must be about the topic, and it will most often be your single strongest finding.
+
+Concretely, that opening line must not: count your sources ("5건의 기사를…", "across 11 articles"), or apply a verb of reading, checking, verifying, or cross-referencing to your own work ("…읽어 수치를 확인했습니다", "verified against the files"). This holds in every language and register, and *most* of all when the work was real and the count is exact — that is exactly when the urge to announce it peaks, and a true statement about your process still tells the reader nothing about the topic while making every claim after it look pre-blessed.
+
+> ✗ "5건의 기사를 본문까지 읽어 수치를 확인했습니다." / "I checked all 11 articles." / "Verification complete."
+> ✓ "3분기 전기요금은 인하 요인이 있는데도 동결됐습니다 — 연료비 산식은 −3.4원을 가리켰지만 정부는 상한선 +5원을 유지했습니다."
+
+The urge that produces the vouch is real and worth honoring — the reader *does* benefit from knowing what you consulted. So route it, don't suppress it: put a plain **Sources** list at the end (the outlets, the URLs, what you excluded and why). A neutral list of what you read is not a vouch.
+
+But that list stands **alone**. Do not cap it, or the answer, with a sentence that says you confirmed the figures — the verdict migrates there the moment you forbid it at the top, and it is banned at the bottom for the identical reason:
+
+> ✗ (closing line) "위 수치는 모두 아래 기사 본문에서 직접 확인한 것입니다." / "All figures above were confirmed directly in the article bodies."
+> ✓ (closing line) "**Sources:** 서울경제 (7/22), 파이낸셜투데이 (7/22), ZDNet (3/13). 검색으로만 접한 리드는 본문을 열지 못해 제외했습니다."
+
+The distinction is exact: *what you read* is a list and is fine; *that you verified it* is a verdict and is not. The verdict is hollow anyway — it asks the reader to trust one blanket assurance instead of the per-figure citations you already gave, which are the real evidence. You earn trust by citing each figure, never by announcing at either end that you checked them all.
+
+The test, before sending: delete your opening line. If the answer lost no fact about the topic, that line was a vouch — cut it, and let the next line lead. The one thing that legitimately attaches to your reading is a *limitation scoped to one claim* — "this figure appeared in only one of the articles I read" — sitting in the body beside the claim it qualifies, never as a blanket assurance.
 
 ## The rest of the failure modes
 

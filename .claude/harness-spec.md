@@ -153,6 +153,21 @@ Third attempt passed all four criteria, with the grader confirming the sweep sti
 
 **The standing lesson for this harness:** improvements here are not monotonic. A change that repairs one behaviour can move a threshold or add an instruction that breaks another, and both regressions in this sequence were introduced by fixes, not by drift. Re-verify the full suite after any change to extraction thresholds or to the grounding section — spot-checking the thing you just fixed is what let both of these through.
 
+### The provenance-vouch, which took six attempts and taught the most
+
+A full-suite re-verification (8 scenarios) after the grounding-section change came back 7/8. The Korean multi-source research scenario failed again — but grounding, attribution (18/18) and selective-retention all *passed*; the sole defect was the answer opening with a process-vouch ("모든 수치의 출처가 파일에 대조되어 확인됐습니다" — every figure verified against the files). This is the single most stubborn behaviour in the whole harness, and the sequence of six attempts to remove it is worth keeping as a case study:
+
+1. Rule stated as one bullet inside the grounding section → the model opened with a source count ("11건의 기사를 확인했습니다").
+2. Own paragraph with a delete-test → opened with a verification verb instead of a count.
+3. Made explicitly silent ("run the check, don't report it") → opened with "확인 끝났습니다. 모든 수치가 검증됐습니다" — the check instruction itself provoked the announcement.
+4. Hoisted to its own top-level section with the impulse named → opened with "5건의 기사를 본문까지 읽어 확인했습니다", a count-plus-verb the model didn't perceive as "the first sentence" because it read as a preamble.
+5. Closed the preamble loophole and *redirected* the sourcing-scope urge to a neutral Sources list → the opener finally became a clean substantive claim, but the verdict **migrated to a closing line** ("위 수치는 모두 아래 기사 본문에서 직접 확인한 것입니다").
+6. Banned the closing verdict with its own concrete ✗ example and made the Sources list stand alone → **PASS**, adversarially graded across four axes: topic-heading opener, no verdict anywhere, grounding 32/32, attribution 12/12.
+
+Two things generalise from this. First, **suppression relocates a drive; redirection dissolves it.** The sourcing-scope impulse had an honest home (a list of what you read), and pointing it there fixed the opener permanently. The verification-*verdict* impulse has no honest home — a global "I verified everything" is epistemically hollow, since it asks the reader to trust one blanket assurance over the per-figure citations that are the actual evidence — so it can only be suppressed, and suppression had to be applied to *every* slot (top, then bottom) before it stopped migrating. Second, the residual failures across attempts 2–5 were **truthful** statements introducing zero false claims; the tool's actual purpose (never present ungrounded web content) was met the entire time. The vouch rule protects against a *different* answer where the blanket assurance would launder an ungrounded figure — which is why it is worth enforcing even though every observed violation was itself accurate.
+
+After the fix, G1 and G5 (the other vouch-eligible multi-item scenarios) were re-run at HEAD to confirm no regression: both opened with clean substantive claims, and G5's derived counts (Einstein 3, 8 authors, 10 quotes on page 1) were verified against the crawled artifact and reconcile. **Full suite 8/8 at HEAD.**
+
 ### Round 6 — the layer re-decision: why grounding stays advisory, measured
 
 Grounding was the one behaviour that failed repeatedly (three times, in three different surface forms) before prose finally held it. The harness-creator feedback-routing table prescribes exactly one move for that pattern: *"An always-required rule gets ignored → strengthen the phrasing. If that's still not enough after a re-run, escalate it to a hook — this is a real re-decision about which layer the requirement belongs in."* The original **no hooks** decision predates all of this evidence and was argued on safety grounds (fetching is read-only), not on grounding. So the re-decision was actually evaluated rather than assumed.
