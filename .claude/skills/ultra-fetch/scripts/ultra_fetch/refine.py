@@ -35,6 +35,11 @@ class RefineResult:
     text: str
     mode: str  # "clean" | "query-filtered" | "unfiltered"
     warnings: list[str] = field(default_factory=list)
+    # True when pruning found no article and we fell back to the whole page.
+    # The caller needs this distinguishable from an explicit --no-filter run:
+    # it means "this page appears to have no article", which is evidence the
+    # content never rendered, not a formatting preference.
+    pruning_collapsed: bool = False
 
 
 def _markdown(html: str, plain: bool = False) -> str:
@@ -57,6 +62,9 @@ def _prune(html: str) -> str:
     chunks = PruningContentFilter(
         threshold=config.PRUNE_THRESHOLD,
         min_word_threshold=config.PRUNE_MIN_WORD_THRESHOLD,
+        # Without this the pruner deletes the text inside every inline tag --
+        # see config.PRUNE_PRESERVE_TAGS for what that costs.
+        preserve_tags=config.PRUNE_PRESERVE_TAGS,
     ).filter_content(html)
     return "\n".join(chunks)
 
@@ -90,7 +98,9 @@ def refine(
         # noisy but honest; silently returning nothing is not.
         warnings.append("content pruning removed everything; falling back to unfiltered page")
         body = _markdown(html, plain=(fmt == "text")) if fmt != "html" else html
-        return RefineResult(text=body, mode="unfiltered", warnings=warnings)
+        return RefineResult(
+            text=body, mode="unfiltered", warnings=warnings, pruning_collapsed=True
+        )
 
     if not query:
         body = pruned_html if fmt == "html" else _markdown(pruned_html, plain=(fmt == "text"))

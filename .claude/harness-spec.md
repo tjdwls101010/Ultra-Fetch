@@ -1,6 +1,6 @@
 # Harness Spec — Ultra Fetch
 
-> Status: **validated** (generated 2026-07-21, e2e 12/12 PASS). Detailed implementation brief lives in `docs/plan/` (read 00→06). This spec is the canonical anchor a future harness-creator invocation audits against.
+> Status: **validated** (generated 2026-07-21; hardened 2026-07-22 through a 4-round e2e improvement loop, 17/18 scenarios PASS). Detailed implementation brief lives in `docs/plan/` (read 00→06). This spec is the canonical anchor a future harness-creator invocation audits against.
 
 ## Context
 
@@ -89,9 +89,28 @@ Full decision log with reasoning: `docs/plan/01-decisions.md` (D1–D13). The lo
 
 All four user-required sites (`claude.com/blog`, `slownews.kr`, `coffeepot.me/addshot`, `ddanzi.com`) passed, as did the Cloudflare, crawl and map coverage additions. The trigger posture is confirmed on both sides: it fires on every genuine read/crawl/map intent and stays dark on all three near-misses.
 
-**Not covered by e2e:** a JS-rendered SPA requiring `--wait-selector` (planned in `docs/plan/06` but no suitable target surfaced during the run — the `--wait-selector` path is exercised only by unit-level argument handling, not against a real late-rendering site). Worth covering in the next validation pass.
+**Not covered by e2e:** a JS-rendered SPA requiring `--wait-selector` (planned in `docs/plan/06` but no suitable target surfaced — the flag is exercised only by unit-level argument handling, not against a real late-rendering site). Note the *automatic* JS path is now covered: news1.kr renders its article client-side and the second-chance escalation handles it without `--wait-selector`.
+
+### Improvement loop (2026-07-22) — 4 rounds, terminated on convergence
+
+After the initial pass, a further e2e programme ran realistic WebSearch→fetch research scenarios and iterated. Termination conditions were set in advance: all-pass, or 3 rounds, or no new actionable defect, or the cause traced outside the harness. Round 3 hit the round cap while holding one precise, high-confidence fix, so a single targeted re-run was allowed rather than stopping on a count — then the loop closed.
+
+The loop found five defects that unit tests could not, all of them silent:
+
+| # | Defect | Fix | Verified by |
+|---|---|---|---|
+| 1 | `PruningContentFilter` deleted the **text inside every inline tag** — code, emphasis, link text. `parameters like \`language\`, \`case_sensitive\`, or \`priority_tags\`` was saved as `parameters like , , or`, and a model filled the blanks from memory and quoted the result as documentation. 35 code spans, 45 bold spans and all link text lost on one real doc page. | `PRUNE_PRESERVE_TAGS` | R2A + unit test |
+| 2 | Headings dropped too — structured docs became an undifferentiated wall (4→17 headings recovered on one page). | same whitelist, `h1`–`h6` | measured on 3 pages |
+| 3 | Short list items dropped at `min_word_threshold=5`, eating **parameter definition lines** in reference docs and orphaning the prose beneath them. | threshold → 2 (preserving `<li>` wholesale was worse: it dragged a forum board's menu back in) | R2A finding, measured on 4 pages |
+| 4 | A **JS-rendered article** shipped enough navigation to pass the access-tier check while containing no article, so the fast tier returned photo captions and reported success. | second-chance escalation judged on the *refined* text, plus a `pruning_collapsed` flag so the fallback can't mask it | R2C + 3 unit tests |
+| 5 | Claims leaking from WebSearch snippets, ungrounded **derived numbers** (a per-author count table that was never computed and summed to 34 against its own stated total of 40), and an opening provenance vouch that survived two rewrites by changing surface form across languages. | SKILL.md grounding rewritten as a standalone principle covering derived numbers, plus a testable first-sentence output-shape rule with a delete-test | R3E, R3G, R4B |
+
+Defect 5 is the instructive one for future maintenance: the rule was *correct* in round 2 and still failed, because it was framed under a WebSearch-specific heading and so read as inapplicable when no search had run, and its negative examples were all English read/verify phrasings that a Korean neutral-register sentence slid past. Fixing it meant converting a rhetorical prohibition into a checkable output-shape gate — evidence for the harness-creator principle that a rule survives only where the model can re-derive it, and that examples teach pattern-matching unless the principle is stated in its own right.
+
+Final scenario state (each in its most recent run): **17 of 18 PASS.** The exception is a scenario-design flaw, not a harness defect — RS1 asked for crawl4ai's filter parameters while crawl4ai is installed in this repo's own venv, so reading the local source was the more authoritative answer and the model correctly routed around the tool.
 
 ## Change history
 
+- **2026-07-22 — hardened (improve).** Four-round e2e improvement loop over realistic WebSearch→fetch research scenarios, terminated on convergence rather than on exhaustion. Fixed five silent defects (inline-tag and heading deletion, short-list-item loss, JS-rendered articles passing the access check, and ungrounded claims/derived numbers/provenance vouching), each with a regression test or a measured before/after. See the Validation section's loop table. Unit tests 31→36.
 - **2026-07-21 — generated + validated.** Implemented the skill and CLI from `docs/plan/`. De-risked coexistence first as the plan required (scrapling 0.4.11 + crawl4ai 0.9.2, no conflicts), then built fetch → crawl → map → cli/launcher → tests → skill. Corrected three things the plan had left open or wrong: the `allowed-tools` pattern (`Bash(ultra-fetch:*)` could never match an absolute-path invocation — now `${CLAUDE_SKILL_DIR}`-based), the markdown-from-HTML path (direct generator, no `AsyncWebCrawler`), and dropped the unused `platformdirs` dependency. Added `errors.py` and `fetch.py` to the planned module list. Four bugs found by running the tool against real sites rather than by unit tests — thin-page-treated-as-blocked, hard-blocked-response-winning-on-size, library log noise breaking the stderr contract, and a `--deep` hint that advised `--deep` — each now regression-tested or encoded as a documented gotcha. e2e 12/12 with cited evidence.
 - **2026-07-21 — planned (new).** Full planning interview (Korean, ~4 AskUserQuestion rounds) after a thorough read of both libraries' official docs (delegated to two subagents). Produced `docs/plan/00–06` and this spec. Decided: custom skill-bundled CLI (no PyPI), both libraries role-split, `fetch`/`crawl`/`map`, file+stderr output, clean-markdown-default with BM25 `--query`, permissive-but-bounded crawl, offline-only (no LLM/auth/screenshots) v1, English artifacts. Implementation is a separate future session.

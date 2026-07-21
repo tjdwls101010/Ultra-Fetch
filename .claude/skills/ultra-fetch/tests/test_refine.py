@@ -70,6 +70,35 @@ def test_collapse_guard_falls_back_rather_than_returning_nothing():
     assert any("collapsed" in w for w in result.warnings)
 
 
+DOC_PAGE = (
+    "<html><body><article>"
+    "<p>Skip the download with the <code>--no-shell</code> flag, or set "
+    "<code>PLAYWRIGHT_SKIP_BROWSER_GC=1</code> to <strong>disable</strong> it entirely.</p>"
+    + "".join(
+        f"<p>Filler prose giving the pruner enough body text to retain the blocks above, line {i}.</p>"
+        for i in range(12)
+    )
+    + "</article></body></html>"
+)
+
+
+def test_pruning_keeps_the_text_inside_inline_tags():
+    # The defect this guards against is silent: the pruner deleted the text
+    # inside every inline tag while leaving the sentence around it intact, so
+    # "parameters like `a`, `b`, or `c`" became "parameters like , , or" and
+    # read as fine prose. A model then filled the blanks from memory. Flag names
+    # and env vars are exactly what a technical page is read for.
+    result = refine(DOC_PAGE)
+    assert "--no-shell" in result.text
+    assert "PLAYWRIGHT_SKIP_BROWSER_GC=1" in result.text
+    assert "disable" in result.text
+
+
+def test_query_filtering_also_keeps_inline_code():
+    result = refine(DOC_PAGE, query="skip download flag environment variable")
+    assert "--no-shell" in result.text or "PLAYWRIGHT_SKIP_BROWSER_GC=1" in result.text
+
+
 def test_empty_html_does_not_crash():
     result = refine("<html><body></body></html>")
     assert result.text.strip() == ""
