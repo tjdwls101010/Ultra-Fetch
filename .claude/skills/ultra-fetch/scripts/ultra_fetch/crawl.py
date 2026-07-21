@@ -70,6 +70,7 @@ async def _crawl(args):
         else PruningContentFilter(
             threshold=config.PRUNE_THRESHOLD,
             min_word_threshold=config.PRUNE_MIN_WORD_THRESHOLD,
+            preserve_tags=config.PRUNE_PRESERVE_TAGS,
         )
     )
 

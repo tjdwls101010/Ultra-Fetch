@@ -40,6 +40,20 @@ CLOUDFLARE_MIN_TIMEOUT = 60
 # interstitials land around 1-3 KB of HTML but only a few hundred chars of text.
 MIN_TEXT_CHARS = 500
 
+# The second escalation trigger, applied *after* refining rather than before.
+#
+# Measuring the raw page is not enough: a news article whose body is injected by
+# JavaScript still ships a full navigation shell, so the raw text sails past
+# MIN_TEXT_CHARS while the actual article is absent. Measured on news1.kr --
+# 8,805 chars of raw markdown, of which the refined article was 465, essentially
+# logos and photo captions; the browser tier returned the real 2,365-char story.
+#
+# So if refining leaves almost nothing, the page rendered its content
+# client-side and we fetched the shell. Escalating costs one browser fetch in
+# exactly the case where the alternative is confidently returning a page's
+# furniture as its content.
+MIN_ARTICLE_CHARS = 500
+
 # Phrases that mean "you are being challenged", not "here is the page". Matched
 # against the visible text of an otherwise-successful response, because a
 # challenge page usually returns 200, not 403 -- status alone won't catch it.
@@ -69,7 +83,50 @@ BLOCK_STATUSES = (401, 403, 406, 409, 429, 503)
 # crawl4ai's own default. Higher = more aggressive junk removal. 0.48 keeps
 # article bodies while dropping nav/footer/sidebar on most sites.
 PRUNE_THRESHOLD = 0.48
-PRUNE_MIN_WORD_THRESHOLD = 5
+# crawl4ai defaults this to 5, which silently eats the shortest lines in
+# reference documentation -- a parameter definition like
+#     `bm25_threshold` (float, default 1.0):
+# is four words, so it vanishes while the explanatory sentence beneath it
+# survives, leaving an orphaned fragment that reads like a formatting glitch
+# rather than a deletion. Measured: that exact line disappears at 5 and returns
+# at 2, for ~700 extra characters on the page.
+#
+# 2 rather than 1 because single-word items are overwhelmingly navigation
+# ("Home", "Docs", "Login"), and preserving <li> wholesale was worse than both:
+# it dragged a forum board's entire menu back in (6.4k -> 11.3k chars) for no
+# gain on documentation.
+PRUNE_MIN_WORD_THRESHOLD = 2
+
+# Tags whose *text* PruningContentFilter deletes unless they are whitelisted.
+#
+# This is not a nicety about formatting -- it is silent data loss, and it is the
+# worst kind because the surrounding sentence survives and reads fine. On
+# crawl4ai's own docs the default pruner turned
+#     "parameters like `language`, `case_sensitive`, or `priority_tags`"
+# into
+#     "parameters like , , or"
+# and a model reading that reasonably filled the blanks from memory and quoted
+# the result as documentation. Measured on one real doc page: 35 inline-code
+# spans, 45 bold spans and every link text vanished; whitelisting recovers 28
+# and 38 of them and roughly doubles retained text (4.5k -> 8.9k chars), which is
+# content that should never have been dropped rather than boilerplate creeping
+# back in.
+#
+# Flag names, env vars and identifiers are exactly what a technical page is read
+# *for*, so losing them defeats the tool's main use case. Anything that carries
+# meaning inside a sentence belongs here; block-level chrome deliberately does not.
+PRUNE_PRESERVE_TAGS = [
+    "code", "pre", "kbd", "samp", "var", "tt",  # identifiers, flags, env vars
+    "strong", "em", "b", "i", "mark",           # emphasis that changes meaning
+    "a", "abbr", "sub", "sup",                  # link text, expansions, notation
+    # Headings are dropped too, and they are how a reader navigates a long page
+    # -- losing them turns structured documentation into an undifferentiated
+    # wall. A heading is also short by nature, so the density heuristic is
+    # biased against it precisely where it matters most. Measured recovery on
+    # three real pages: 4->17, 4->10 and 0->2 headings, for under 300 extra
+    # characters each.
+    "h1", "h2", "h3", "h4", "h5", "h6",
+]
 
 # BM25: higher = fewer, more relevant chunks. 1.0 is crawl4ai's default and is
 # already fairly permissive; the collapse guard below is what protects us when

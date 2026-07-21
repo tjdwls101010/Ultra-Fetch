@@ -5,7 +5,7 @@ what is worth keeping, output.py decides where it lands. This module's whole job
 is to sequence them and report honestly on what happened.
 """
 
-from . import output
+from . import config, output
 from .access import fetch_html
 from .errors import EXIT_OK, EmptyContentError
 from .refine import refine
@@ -24,9 +24,43 @@ def run(args) -> int:
         args.url, mode=mode, timeout=args.timeout, wait_selector=args.wait_selector
     )
 
-    refined = refine(
-        result.html, query=args.query, no_filter=args.no_filter, fmt=args.format
+    def _refine(html):
+        return refine(html, query=args.query, no_filter=args.no_filter, fmt=args.format)
+
+    refined = _refine(result.html)
+
+    # Second-chance escalation, judged on the refined text rather than the raw
+    # page. access.py can only see how much text arrived, and a JS-rendered
+    # article arrives wrapped in enough navigation to look healthy; only after
+    # refining is it clear that almost none of it was content. See
+    # config.MIN_ARTICLE_CHARS.
+    # Two shapes of "we fetched a shell": refining left almost nothing, or
+    # refining found no article at all and fell back to the whole page. The
+    # second must be checked separately, because that fallback re-inflates the
+    # output with the very navigation that hid the problem -- so a size check
+    # alone would see a healthy-looking result and never fire.
+    looks_empty = len(refined.text.strip()) < config.MIN_ARTICLE_CHARS or (
+        refined.pruning_collapsed and not args.no_filter
     )
+
+    if mode == "auto" and result.tier == "fast" and looks_empty:
+        retried = fetch_html(
+            args.url, mode="stealth", timeout=args.timeout, wait_selector=args.wait_selector
+        )
+        retried_refined = _refine(retried.html)
+        # Prefer the retry only if it actually found an article. Comparing raw
+        # length would let a browser-rendered navigation shell beat a small but
+        # genuine article, so compare on whether refining succeeded first.
+        better = (not retried_refined.pruning_collapsed and refined.pruning_collapsed) or (
+            retried_refined.pruning_collapsed == refined.pruning_collapsed
+            and len(retried_refined.text.strip()) > len(refined.text.strip())
+        )
+        if better:
+            result, refined = retried, retried_refined
+            result.escalated_because = (
+                "fast tier refined to almost nothing (content is rendered client-side)"
+            )
+
     for message in refined.warnings:
         output.warn(message)
 
