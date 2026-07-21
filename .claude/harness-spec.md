@@ -121,6 +121,28 @@ That redesign then surfaced a further defect and one accepted limit:
 
 Final scenario state (each in its most recent run): **20 of 20 PASS.** Unit tests 36 → 39. Every CLI code path is now exercised against a real site.
 
+### Round 6 — the layer re-decision: why grounding stays advisory, measured
+
+Grounding was the one behaviour that failed repeatedly (three times, in three different surface forms) before prose finally held it. The harness-creator feedback-routing table prescribes exactly one move for that pattern: *"An always-required rule gets ignored → strengthen the phrasing. If that's still not enough after a re-run, escalate it to a hook — this is a real re-decision about which layer the requirement belongs in."* The original **no hooks** decision predates all of this evidence and was argued on safety grounds (fetching is read-only), not on grounding. So the re-decision was actually evaluated rather than assumed.
+
+A prototype detector was built — extract every numeric token from a session's final answer, check each against the artifacts that session fetched — and measured against seven e2e runs whose verdicts were already known:
+
+| run | verdict | unmatched / total | ratio |
+|---|---|---|---|
+| R2E | **FAIL** | 4/4 | 100% |
+| R3E | PASS | 4/5 | 80% |
+| R5W | PASS | 2/3 | 67% |
+| R3G | PASS | 2/5 | 40% |
+| R5A | PASS | 3/9 | 33% |
+| R2B | **FAIL** | 12/97 | 12% |
+| R4B | PASS | 5/81 | 6% |
+
+**No threshold separates the two classes** — the lowest FAIL (12%) sits beneath four PASSes ranging to 80%. The detector has essentially no discriminative power, and the reason is structural rather than tunable: R3E is the *exemplar* of correct behaviour, where every count was computed with `sort | uniq -c` and reconciled against its own stated total. Its numbers (`20 authors`, `30 quotes`) are **derived**, therefore correct, therefore by construction absent from the artifact text. A fabricated count is absent for the opposite reason. To any text-matching check the two are indistinguishable, and the very discipline the skill teaches — compute rather than eyeball — is what makes the check fire hardest.
+
+**Conclusion:** the evidence that separates a warranted number from an invented one lives in the *process* (was a command run over the artifact, does the arithmetic reconcile), not in the text, so it is invisible to the layer that could enforce it. Grounding therefore belongs in prose, and the harness's original "no hooks" routing is confirmed — now on measured grounds. Do not re-litigate this without new evidence of a different kind; a numeric-presence hook would fire on the best runs in this suite.
+
+This is also the honest ceiling on the harness. Everything mechanically checkable is checked and passing; the one remaining property is one no harness layer can guarantee, only make more likely — which the five preceding rounds did, by converting a rule that failed three times into a testable output-shape gate that then held.
+
 ## Change history
 
 - **2026-07-22 — hardened (improve).** Four-round e2e improvement loop over realistic WebSearch→fetch research scenarios, terminated on convergence rather than on exhaustion. Fixed five silent defects (inline-tag and heading deletion, short-list-item loss, JS-rendered articles passing the access check, and ungrounded claims/derived numbers/provenance vouching), each with a regression test or a measured before/after. See the Validation section's loop table. Unit tests 31→36.
