@@ -119,7 +119,17 @@ That redesign then surfaced a further defect and one accepted limit:
 - **Fixed — `<dt>` labels.** Every Sphinx-style API reference renders a parameter as `<dt>name</dt><dd>description</dd>`. A `<dt>` is one word by construction, so it failed the min-word check while its description survived, leaving a page of *anonymous descriptions that still read as complete*. Measured on polars' `read_csv`: 1 of 10 names survived, 34 of 34 after whitelisting `dt`, at +737 chars on that page and **+0** on an article, a docs guide, a Korean news post and a forum board.
 - **Accepted limit — signature defaults.** Default values live in the function signature, which filtering still drops. Whitelisting `<span>` was tried and rejected on measurement: it did not recover the signature and cost +23% on a forum board. The model already handles this correctly by re-fetching with `--no-filter` (verified in R5A), and SKILL.md now names the symptom — labels present, values missing — so the remedy is reached directly rather than rediscovered.
 
-Final scenario state (each in its most recent run): **20 of 20 PASS.** Unit tests 36 → 39. Every CLI code path is now exercised against a real site.
+Final scenario state (each in its most recent run): **20 of 20 PASS.** Unit tests 36 → 39.
+
+### Round 7 — auditing a claim I had made without checking it
+
+Round 5 asserted that "every CLI code path is now exercised against a real site." Auditing that against `catalog`'s own flag list showed it was **false**: eleven flags had never been run against anything. The claim was the same species of error the skill exists to prevent — a confident statement not traced to evidence — so it was checked and closed rather than softened.
+
+Newly exercised, all passing: `fetch --format text` (links stripped), `map --format txt`, `map --pattern` (8/8 matched the glob), `map --live-check`, `crawl --query` (recorded in the manifest, per-page filtering applied), `crawl --strategy bfs` and `dfs`, `crawl --respect-robots`, `crawl --exclude` (0 of 4 pages matched the excluded glob), `crawl --include-external`, `crawl --timeout`, and `setup --upgrade`.
+
+`setup --upgrade` was the one carrying real risk, since it mutates the shared venv and rewrites `requirements.txt`. Run behind a restore point (the file is git-tracked and was backed up first): it upgraded, found both libraries already current, re-pinned to identical versions, preserved the file's comments, and left the tests and a live fetch passing. `git diff` on the file is empty afterwards.
+
+**Coverage is now literal rather than asserted:** every flag in `catalog` has been run against a real site or a real venv.
 
 ### Round 6 — the layer re-decision: why grounding stays advisory, measured
 
