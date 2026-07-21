@@ -7,7 +7,7 @@ is to sequence them and report honestly on what happened.
 
 from . import config, output
 from .access import fetch_html
-from .errors import EXIT_OK, EmptyContentError
+from .errors import EXIT_OK, AccessError, EmptyContentError
 from .refine import refine
 
 SUFFIXES = {"markdown": ".md", "text": ".txt", "html": ".html"}
@@ -39,15 +39,33 @@ def run(args) -> int:
     # second must be checked separately, because that fallback re-inflates the
     # output with the very navigation that hid the problem -- so a size check
     # alone would see a healthy-looking result and never fire.
-    looks_empty = len(refined.text.strip()) < config.MIN_ARTICLE_CHARS or (
-        refined.pruning_collapsed and not args.no_filter
+    refined_len = len(refined.text.strip())
+    raw_len = len(result.html)
+    looks_shell = (
+        refined_len < config.SHELL_MAX_CHARS
+        and raw_len > 0
+        and refined_len / raw_len < config.SHELL_MAX_RATIO
+    )
+    looks_empty = (
+        refined_len < config.MIN_ARTICLE_CHARS
+        or looks_shell
+        or (refined.pruning_collapsed and not args.no_filter)
     )
 
     if mode == "auto" and result.tier == "fast" and looks_empty:
-        retried = fetch_html(
-            args.url, mode="stealth", timeout=args.timeout, wait_selector=args.wait_selector
-        )
-        retried_refined = _refine(retried.html)
+        try:
+            retried = fetch_html(
+                args.url, mode="stealth", timeout=args.timeout, wait_selector=args.wait_selector
+            )
+        except AccessError:
+            # The retry is opportunistic: we already hold a response the host
+            # served willingly. If the browser cannot repeat it -- a 204 has no
+            # document to navigate to, for instance -- that says nothing about
+            # reachability, so keep what we have and let the empty-content path
+            # report it. Propagating here would relabel a reachable-but-empty
+            # page as unreachable and send the caller after a nonexistent wall.
+            retried = None
+        retried_refined = _refine(retried.html) if retried else refined
         # Prefer the retry only if it actually found an article. Comparing raw
         # length would let a browser-rendered navigation shell beat a small but
         # genuine article, so compare on whether refining succeeded first.
@@ -55,7 +73,7 @@ def run(args) -> int:
             retried_refined.pruning_collapsed == refined.pruning_collapsed
             and len(retried_refined.text.strip()) > len(refined.text.strip())
         )
-        if better:
+        if retried and better:
             result, refined = retried, retried_refined
             result.escalated_because = (
                 "fast tier refined to almost nothing (content is rendered client-side)"

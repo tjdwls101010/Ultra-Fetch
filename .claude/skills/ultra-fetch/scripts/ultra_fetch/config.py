@@ -54,6 +54,26 @@ MIN_TEXT_CHARS = 500
 # furniture as its content.
 MIN_ARTICLE_CHARS = 500
 
+# The second half of that signal, and the reason an absolute floor alone is not
+# enough. A floor calibrated against one page silently stops working the moment
+# extraction improves: preserving headings and inline tags lifted news1.kr's
+# unrendered shell from 465 chars to 834, which cleared a 500-char floor while
+# still being a headline and photo captions rather than the 2,365-char article.
+#
+# What actually distinguishes a shell is that the navigation dominates it. A
+# real page keeps a large share of its own markdown after refining; a shell
+# keeps a sliver, because the article was never in the HTML. Measured:
+#   shell      news1.kr           834 chars   9.5% of raw
+#   real       slownews article  4,569       18.7%
+#   real       ddanzi post      15,644       61.9%
+#   real       anthropic news   17,783       63.1%
+#   real       crawl4ai docs     9,884       65.0%
+# So: modest in absolute terms AND a small fraction of the page. Both conditions
+# are needed -- a genuinely short page (example.com) keeps ~100% of itself and
+# must not be mistaken for a shell, and it is already covered by the floor above.
+SHELL_MAX_CHARS = 1500
+SHELL_MAX_RATIO = 0.15
+
 # Phrases that mean "you are being challenged", not "here is the page". Matched
 # against the visible text of an otherwise-successful response, because a
 # challenge page usually returns 200, not 403 -- status alone won't catch it.

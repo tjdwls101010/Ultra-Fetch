@@ -217,6 +217,15 @@ def fetch_html(
     if finding is None:
         return fast
 
+    # The fast tier answered with a normal status -- the host is reachable and
+    # willing. Whatever the browser does next, failing the whole fetch as
+    # "unreachable" would be wrong, and its hint (raise --timeout, suspect an
+    # anti-bot vendor) would send the caller chasing a problem that isn't there.
+    # A 204 No Content is the clean example: reached perfectly, simply empty.
+    # Hand the fast response back instead and let refine judge emptiness, which
+    # is exit 4's job rather than exit 3's.
+    reachable = 200 <= fast.status < 400
+
     # Always solve Cloudflare on the escalation path, even when the evidence was
     # only a thin body. Cloudflare's interstitial does not always announce
     # itself: a challenge can arrive as a near-empty shell with no marker and a
@@ -225,7 +234,12 @@ def fetch_html(
     # measured on nowsecure.nl, which returns 56 chars and needs the solve. The
     # cost when there is no challenge is a few seconds on a path that only runs
     # because something already looked wrong.
-    stealth = _fetch_stealth(url, timeout, wait_selector, solve_cloudflare=True)
+    try:
+        stealth = _fetch_stealth(url, timeout, wait_selector, solve_cloudflare=True)
+    except AccessError:
+        if reachable:
+            return fast
+        raise
     stealth.escalated_because = finding.reason
 
     after = diagnose(stealth.status, stealth.html)
