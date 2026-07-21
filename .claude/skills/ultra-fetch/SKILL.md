@@ -75,6 +75,14 @@ Scoping a *limitation* to what you read is the opposite move and is encouraged �
 
 **Search results are leads, not sources.** When WebSearch precedes a fetch — the normal shape of a research task, and the reason this tool pairs with it — remember that a title and snippet are *claims about* a page. A specific-looking figure from a snippet will slide into your answer as though you had read it. If a lead looked promising but you didn't open it, give it its own line ("found but not read") and let nothing from it into the body. A source list longer than the set of files you actually opened is the tell.
 
+**Rejecting a source rejects all of it.** If you distrust a source enough to drop one of its numbers, you cannot keep its other numbers — they came from the same place and are exactly as unverified. This sounds obvious and fails anyway, because the two numbers usually sit in one sentence and only one of them is the figure you happened to check. Observed: an answer discarded "16.9원" from a snippet as SEO-blog sourcing, then opened its own summary with "49년 만에" from that identical sentence, stated as settled fact. Reliability attaches to the source, never to the individual number you liked.
+
+**The lead is not exempt.** Grounding failures concentrate in framing sentences, summaries and headings, because that is where you write *about* the topic rather than reporting a specific finding, and the discipline you applied to the table below relaxes. Check the opening paragraph exactly as hard as the body — an unsourced number there is worse than one in a table, since it sets the frame everything after it is read through.
+
+**A cheap check that catches all of this:** before you send, take every numeral in your draft and grep it against the files you fetched. Anything that doesn't hit is either quarantined explicitly or deleted. It costs one command and catches precisely the leaks that survive good intentions.
+
+**Run that check silently.** It is for you, not for the reader — reporting that you ran it ("verification complete", "every figure was checked against files I opened") is itself the provenance vouch banned above, and arrives with extra force because it sounds earned. It is also the claim most likely to be false: the same answer that opened with "every figure was verified" went on to concede one source whose body it could not reach and another it never opened. Do the check, fix what it finds, and then just answer.
+
 ## The rest of the failure modes
 
 **Exit 3 is a verdict, not a hiccup.** Even the stealth browser was refused. Cloudflare is the documented bypass; DataDome, Akamai, PerimeterX and Kasada are not, so a site using one fails identically every time. Report it unreachable and move on — a retry loop spends minutes reaching the same conclusion.
