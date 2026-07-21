@@ -1,0 +1,6 @@
+# Pinned deliberately (D12): dependencies are upgraded manually via
+# `ultra-fetch setup --upgrade`, which re-pins this file to whatever it
+# just proved installable together. Both libraries are Playwright-family
+# and share one venv, so unpinned drift is how they start conflicting.
+scrapling[fetchers]==0.4.11
+crawl4ai==0.9.2
