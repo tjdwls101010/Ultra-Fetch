@@ -1,6 +1,6 @@
 # Harness Spec — Ultra Fetch
 
-> Status: **validated** (generated 2026-07-21; hardened 2026-07-22 through a 5-round e2e improvement loop, 20/20 scenarios PASS). Detailed implementation brief lives in `docs/plan/` (read 00→06). This spec is the canonical anchor a future harness-creator invocation audits against.
+> Status: **validated** (generated 2026-07-21; hardened 2026-07-22 through an 11-round e2e improvement loop, all scenarios PASS at HEAD). Detailed implementation brief lives in `docs/plan/` (read 00→06). This spec is the canonical anchor a future harness-creator invocation audits against.
 
 ## Context
 
@@ -136,6 +136,22 @@ Newly exercised, all passing: `fetch --format text` (links stripped), `map --for
 The launcher's first-run branch (B9/B10) provisions the venv, installs both browser stacks, and prints the one-time-download notice. It had **never executed in this entire effort**: the venv was created by hand in the session's first minutes for the coexistence de-risk, so every subsequent run took the already-provisioned path. This is the first thing a new user hits and it was the least tested thing in the project.
 
 Run properly, with the existing venv moved aside rather than deleted: provisioning completed and a stealth fetch succeeded in **52 seconds**, after which all three commands, the Cloudflare-bypassing stealth tier, and the full unit suite passed against the freshly built environment. One caveat worth recording honestly — the browser caches (`~/Library/Caches/ms-playwright`, Patchright's equivalent) live outside the venv and were already warm, so a genuine first run on a clean machine downloads several hundred MB and takes correspondingly longer. The notice exists for exactly that case.
+
+### Rounds 9–11 — three error paths, and a fix that provoked a regression twice
+
+Testing the exit-code paths, which had never been exercised, found two wrong and then re-testing found a third that an earlier improvement had silently broken:
+
+- **`setup --browsers` crashed with a raw traceback and exit 1** when a venv binary was missing — precisely the damaged install exit 2 exists for, so SKILL.md's own advice ("on exit 2, run setup --browsers") misrouted at the moment it was needed.
+- **A 204 No Content returned exit 3, "unreachable"**, hinting at Cloudflare timeouts. The host answered perfectly and simply had no body; the browser retry cannot navigate to a 204 and its exception was propagating. The retry is opportunistic — we already hold a response the host served willingly — so a failed retry now keeps the original and lets exit 4 report it.
+- **The regression:** preserving headings and inline tags lifted news1.kr's unrendered shell from 465 to 834 chars, clearing the 500-char floor that triggers JS escalation. It stopped escalating and returned a headline plus photo captions as though it were the article. A floor calibrated against one page stops working the moment extraction improves, so escalation now also weighs what share of the page survives refining — a shell keeps a sliver (news1 9.5%) where real pages keep a lot (slownews 18.7%, ddanzi 61.9%, anthropic 63.1%, docs 65.0%).
+
+**The grounding fix then provoked a regression of its own, twice over, which is the most instructive sequence in this whole effort.** A re-verification run failed on a figure ("49년") lifted from a WebSearch snippet into the lead — aggravated by the answer having quarantined that same snippet sentence's sibling figure as untrustworthy while silently promoting this one. Three additions closed it: rejecting a source rejects *all* of it; the lead is not exempt from the discipline applied to the body; and a grep self-check over every numeral before sending.
+
+The next run then failed on a *different* item: it opened with "확인 끝났습니다. 모든 수치가 제가 직접 연 파일에서 검증됐습니다" — a blanket provenance vouch, which is exactly what the first-sentence rule bans. The cause was the fix itself: told to run a verification check, the model ran it and then announced it. The claim was also false, since the same answer conceded one source it could not reach and another it never opened. Resolved by making the check explicitly silent — *do it, fix what it finds, then just answer*.
+
+Third attempt passed all four criteria, with the grader confirming the sweep still ran (visible in the transcript) while nothing about it surfaced in the output.
+
+**The standing lesson for this harness:** improvements here are not monotonic. A change that repairs one behaviour can move a threshold or add an instruction that breaks another, and both regressions in this sequence were introduced by fixes, not by drift. Re-verify the full suite after any change to extraction thresholds or to the grounding section — spot-checking the thing you just fixed is what let both of these through.
 
 ### Round 6 — the layer re-decision: why grounding stays advisory, measured
 
