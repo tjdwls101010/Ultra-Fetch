@@ -61,6 +61,13 @@ def run(args) -> int:
                 "fast tier refined to almost nothing (content is rendered client-side)"
             )
 
+    if result.selector_missing:
+        output.warn(
+            f"--wait-selector {result.selector_missing!r} never matched; the page was "
+            f"captured after the wait timed out, so the content you were waiting for is "
+            f"probably not in this result. Check the selector against the live page."
+        )
+
     for message in refined.warnings:
         output.warn(message)
 

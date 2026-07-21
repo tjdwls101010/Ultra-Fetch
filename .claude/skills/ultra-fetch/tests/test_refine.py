@@ -94,6 +94,25 @@ def test_pruning_keeps_the_text_inside_inline_tags():
     assert "disable" in result.text
 
 
+def test_definition_terms_keep_their_labels():
+    # An API reference renders each parameter as <dt>name</dt><dd>description</dd>.
+    # A <dt> is one word by construction, so it lost the min-word check while its
+    # <dd> survived -- producing a page of anonymous descriptions that still
+    # reads as complete. Measured on a real API page: 1 of 10 names survived.
+    api_page = (
+        "<html><body><article><dl>"
+        + "".join(
+            f"<dt>param_{i}</dt><dd>Description number {i} explaining at length what this "
+            f"parameter controls and why you would change it from the default.</dd>"
+            for i in range(6)
+        )
+        + "</dl></article></body></html>"
+    )
+    result = refine(api_page)
+    for i in range(6):
+        assert f"param_{i}" in result.text, f"parameter label param_{i} was dropped"
+
+
 def test_query_filtering_also_keeps_inline_code():
     result = refine(DOC_PAGE, query="skip download flag environment variable")
     assert "--no-shell" in result.text or "PLAYWRIGHT_SKIP_BROWSER_GC=1" in result.text

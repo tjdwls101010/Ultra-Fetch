@@ -123,6 +123,40 @@ def test_thin_page_keeps_the_richer_of_the_two_tiers(monkeypatch):
     assert "Short but real page" in result.html
 
 
+def test_an_unmatched_wait_selector_is_reported(monkeypatch):
+    # Waiting for a selector that never arrives is not an error to the fetcher --
+    # it waits out the timeout and returns the page anyway (measured: 63s vs 3.4s
+    # for a selector that does match). Reporting success silently leaves the
+    # caller believing the content they waited for is in the result.
+    class _Response:
+        html_content = ARTICLE
+        status = 200
+
+        def css(self, selector):
+            return []
+
+    monkeypatch.setattr(
+        access, "_stealth_fetcher", lambda: type("F", (), {"fetch": staticmethod(lambda url, **k: _Response())})
+    )
+    result = access._fetch_stealth("https://example.com", 30, "#never", solve_cloudflare=False)
+    assert result.selector_missing == "#never"
+
+
+def test_a_matched_wait_selector_is_not_reported(monkeypatch):
+    class _Response:
+        html_content = ARTICLE
+        status = 200
+
+        def css(self, selector):
+            return ["<div/>"]
+
+    monkeypatch.setattr(
+        access, "_stealth_fetcher", lambda: type("F", (), {"fetch": staticmethod(lambda url, **k: _Response())})
+    )
+    result = access._fetch_stealth("https://example.com", 30, ".quote", solve_cloudflare=False)
+    assert result.selector_missing is None
+
+
 def test_script_content_does_not_count_as_text():
     # A JS shell whose bulk is inline script must still read as thin, otherwise
     # a single-page app looks like a full page and never escalates.
