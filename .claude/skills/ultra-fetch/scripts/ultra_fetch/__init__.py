@@ -5,4 +5,4 @@ distributable package: it is imported only via `python -m ultra_fetch` from the
 skill's dedicated venv, so it carries no pyproject.toml and no entry points.
 """
 
-__version__ = "0.1.0"
+__version__ = "0.2.5"
