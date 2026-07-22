@@ -177,6 +177,12 @@ Probing input shapes the e2e suite never used surfaced two real defects:
 
 Unit tests 41→47.
 
+### Round 14 — large-crawl stress test: no defect, one corrected assumption
+
+The 25-page-default crawl had only ever been run at 3–6 pages. Stress-tested at 30 pages against a real docs site (docs.astral.sh/uv): **30 pages in 10.4s, peak RSS 250 MB, 0 failed, 0 empty, exit 7 honestly reported, content 476–43,556 chars/page.** The mechanics scale cleanly — no defect.
+
+The test did overturn a stored assumption. Every crawl reported `max_depth_reached: 1` regardless of `--max-depth`, and probing crawl4ai's own per-result `metadata['depth']` confirmed the manifest is faithful — the depth-1 dominance is *correct*, because nav sidebars and tag clouds link most of a site's pages directly from the start page (they are genuinely one hop away). A prior memory note claimed `--query` restores depth by fixing best-first ordering; tested directly, it does not — scores came back uniform (0.333) and the cap still bound at depth 1. So `--max-pages`, not `--max-depth`, is the real constraint on nearly all sites, and a shallow crawl is usually complete rather than deficient. Corrected the project memory and added a SKILL.md line so a correct shallow crawl isn't misreported as a failure.
+
 ### Round 6 — the layer re-decision: why grounding stays advisory, measured
 
 Grounding was the one behaviour that failed repeatedly (three times, in three different surface forms) before prose finally held it. The harness-creator feedback-routing table prescribes exactly one move for that pattern: *"An always-required rule gets ignored → strengthen the phrasing. If that's still not enough after a re-run, escalate it to a hook — this is a real re-decision about which layer the requirement belongs in."* The original **no hooks** decision predates all of this evidence and was argued on safety grounds (fetching is read-only), not on grounding. So the re-decision was actually evaluated rather than assumed.
