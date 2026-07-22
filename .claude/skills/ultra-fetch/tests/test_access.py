@@ -8,8 +8,8 @@ unreachable after successfully fetching it.
 import pytest
 
 from ultra_fetch import access
-from ultra_fetch.access import FetchResult, diagnose
-from ultra_fetch.errors import AccessError
+from ultra_fetch.access import FetchResult, diagnose, guard_content_type, _network_hint
+from ultra_fetch.errors import AccessError, UnsupportedContentError
 
 ARTICLE = "<html><body><article><p>" + ("real sentences about a topic " * 40) + "</p></article></body></html>"
 
@@ -155,6 +155,45 @@ def test_a_matched_wait_selector_is_not_reported(monkeypatch):
     )
     result = access._fetch_stealth("https://example.com", 30, ".quote", solve_cloudflare=False)
     assert result.selector_missing is None
+
+
+def test_a_pdf_is_refused_not_processed():
+    # Left unchecked, a PDF ran through the HTML pipeline and produced ~2MB of
+    # mojibake reported as a successful fetch. It must fail cleanly instead.
+    with pytest.raises(UnsupportedContentError) as caught:
+        guard_content_type("application/pdf", "https://example.com/paper.pdf")
+    assert caught.value.exit_code == 4
+
+
+def test_media_and_office_types_are_refused():
+    for ct in ("image/png", "audio/mpeg", "video/mp4", "application/vnd.ms-excel",
+               "application/octet-stream", "application/zip"):
+        with pytest.raises(UnsupportedContentError):
+            guard_content_type(ct, "https://example.com/file")
+
+
+def test_html_and_text_formats_pass_the_content_guard():
+    # These convert to (or already are) readable text; never refuse them. SVG is
+    # deliberately NOT here -- it is an image content-type and is refused.
+    for ct in ("text/html", "application/xml", "application/json", None):
+        guard_content_type(ct, "https://example.com")  # must not raise
+
+
+def test_svg_is_refused_as_an_image():
+    with pytest.raises(UnsupportedContentError):
+        guard_content_type("image/svg+xml", "https://example.com/logo.svg")
+
+
+def test_dns_failure_gets_a_dns_hint_not_a_cloudflare_one():
+    hint = _network_hint("curl: (6) Could not resolve host: nope.invalid", "DEFAULT")
+    assert "resolve" in hint.lower()
+    assert "cloudflare" not in hint.lower() and hint != "DEFAULT"
+
+
+def test_a_plain_wall_keeps_the_default_hint():
+    # A reached-but-walled page is not a DNS/connection error, so the
+    # Cloudflare-aware default must survive.
+    assert _network_hint("HTTP 403 challenge", "DEFAULT") == "DEFAULT"
 
 
 def test_script_content_does_not_count_as_text():

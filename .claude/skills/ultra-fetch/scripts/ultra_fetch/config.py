@@ -91,6 +91,28 @@ BLOCK_MARKERS = (
     "why have i been blocked",
 )
 
+# Content-Type prefixes that this tool cannot turn into markdown, because there
+# is no markup to convert -- the bytes are a document format or media, not a web
+# page. Left unchecked, a PDF sails through the HTML pipeline and produces
+# megabytes of mojibake reported as a successful fetch (measured: an arXiv PDF
+# became 1,982,087 chars of binary garbage at exit 0). A model reading that file
+# gets noise it may try to interpret. Refusing with a clear message is the only
+# honest outcome. XML and JSON are deliberately NOT listed -- they are text a
+# caller may legitimately want saved. SVG is caught by the `image/` prefix on
+# purpose: it is vector drawing instructions, not prose, and converts to nothing.
+UNSUPPORTED_CONTENT_PREFIXES = (
+    "application/pdf",
+    "image/",
+    "audio/",
+    "video/",
+    "application/zip",
+    "application/octet-stream",
+    "application/x-",  # tarballs, executables, etc.
+    "application/msword",
+    "application/vnd.",  # office documents (docx/xlsx/pptx and friends)
+    "font/",
+)
+
 # Statuses that mean "blocked" rather than "genuinely absent". A 404 is a real
 # answer and must NOT trigger escalation -- burning a 60s browser fetch on a
 # page that truly doesn't exist is the most common way this kind of tool wastes

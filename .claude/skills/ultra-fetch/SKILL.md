@@ -100,6 +100,8 @@ The test, before sending: delete your opening line. If the answer lost no fact a
 
 **Exit 3 is a verdict, not a hiccup.** Even the stealth browser was refused. Cloudflare is the documented bypass; DataDome, Akamai, PerimeterX and Kasada are not, so a site using one fails identically every time. Report it unreachable and move on — a retry loop spends minutes reaching the same conclusion.
 
+**Exit 4 is empty content — but read the message, because two different things land here.** A real HTML page that yielded no text is retryable (drop `--query`, add `--no-filter`, or `--wait-selector` for late rendering). A URL that *isn't a web page* — a PDF, an image, an office doc — is not: no flag turns a PDF into markdown. The message tells you which case you hit; when it names a binary type, don't retry, just report that the link is a file to download rather than a page to read.
+
 **Exit 7 means partial.** A cap stopped the run early. Read `manifest.json`'s `stop_reason` and say what you actually got ("8 pages, depth ≤ 1, cap hit — the site has more"). Presenting a capped crawl as the whole site is the failure that's invisible unless you check.
 
 **Crawling ignores robots.txt by default.** Fine for personal research, which is what this is for; pass `--respect-robots` when a task calls for politeness, and keep fan-out bounded regardless.

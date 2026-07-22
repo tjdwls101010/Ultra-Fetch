@@ -16,7 +16,7 @@ Claude choose a tier it has no way to choose correctly in advance.
 from dataclasses import dataclass
 
 from . import config
-from .errors import AccessError
+from .errors import AccessError, UnsupportedContentError
 from .output import silence_library_logging
 
 
@@ -29,6 +29,65 @@ class FetchResult:
     # Set to the selector when --wait-selector was given and never matched, so
     # the caller can be told the thing it waited for never appeared.
     selector_missing: str | None = None
+    content_type: str | None = None
+
+
+def _content_type(response) -> str | None:
+    headers = getattr(response, "headers", None)
+    if not headers:
+        return None
+    try:
+        value = headers.get("content-type") or headers.get("Content-Type")
+    except Exception:
+        return None
+    return value.split(";")[0].strip().lower() if value else None
+
+
+def guard_content_type(content_type: str | None, url: str) -> None:
+    """Refuse a response whose bytes are not a web page. See config's list."""
+    if not content_type:
+        return
+    if content_type.startswith(config.UNSUPPORTED_CONTENT_PREFIXES):
+        raise UnsupportedContentError(
+            f"{url} is {content_type}, not an HTML page -- ultra-fetch produces "
+            f"markdown from web pages and cannot read this format",
+            hint="Download the file directly (curl/wget) and open it with the right "
+            "tool; a PDF needs a PDF reader, an image needs an image viewer.",
+        )
+
+
+_DNS_MARKERS = (
+    "could not resolve host",
+    "name or service not known",
+    "err_name_not_resolved",
+    "getaddrinfo",
+    "nodename nor servname",
+    "no address associated",
+)
+_CONN_MARKERS = (
+    "connection refused",
+    "err_connection_refused",
+    "connection reset",
+    "err_connection_reset",
+    "failed to connect",
+)
+
+
+def _network_hint(error_text: str, default: str) -> str:
+    """A hint that fits the actual failure, not a blanket Cloudflare guess.
+
+    The Cloudflare-flavoured hint is right for a page that was reached and
+    walled; it is misleading for a domain that does not resolve or refuses the
+    connection, where raising --timeout or suspecting an anti-bot vendor sends
+    the caller chasing a problem that isn't there. Read the underlying error and
+    match the advice to it.
+    """
+    lowered = error_text.lower()
+    if any(m in lowered for m in _DNS_MARKERS):
+        return "The domain did not resolve -- check the URL for a typo; this is not a bot wall."
+    if any(m in lowered for m in _CONN_MARKERS):
+        return "The host refused or dropped the connection -- it may be down; not a bot wall."
+    return default
 
 
 def _visible_text(html: str) -> str:
@@ -102,11 +161,19 @@ def _fetch_fast(url: str, timeout: int) -> FetchResult:
     except Exception as exc:  # network-level failure, DNS, TLS, timeout
         raise AccessError(
             f"fast fetch of {url} failed: {exc}",
-            hint="The host may be down or refusing non-browser clients; "
-            "a --stealth retry is worth one attempt.",
+            hint=_network_hint(
+                str(exc),
+                "The host may be down or refusing non-browser clients; "
+                "a --stealth retry is worth one attempt.",
+            ),
         ) from exc
 
-    return FetchResult(html=str(response.html_content), tier="fast", status=response.status)
+    content_type = _content_type(response)
+    guard_content_type(content_type, url)
+    return FetchResult(
+        html=str(response.html_content), tier="fast",
+        status=response.status, content_type=content_type,
+    )
 
 
 def _stealth_fetcher():
@@ -145,12 +212,20 @@ def _fetch_stealth(
     except Exception as exc:
         raise AccessError(
             f"stealth fetch of {url} failed: {exc}",
-            hint="If this is a timeout on a Cloudflare-protected site, raise --timeout "
-            "(solving needs >=60s). Otherwise the site likely uses an anti-bot vendor "
-            "scrapling does not document support for.",
+            hint=_network_hint(
+                str(exc),
+                "If this is a timeout on a Cloudflare-protected site, raise --timeout "
+                "(solving needs >=60s). Otherwise the site likely uses an anti-bot vendor "
+                "scrapling does not document support for.",
+            ),
         ) from exc
 
-    result = FetchResult(html=str(response.html_content), tier="stealth", status=response.status)
+    content_type = _content_type(response)
+    guard_content_type(content_type, url)
+    result = FetchResult(
+        html=str(response.html_content), tier="stealth",
+        status=response.status, content_type=content_type,
+    )
 
     # Waiting for a selector that never arrives is not an error to the fetcher:
     # it waits out the timeout and hands back whatever the page had. Silently

@@ -168,6 +168,15 @@ Two things generalise from this. First, **suppression relocates a drive; redirec
 
 After the fix, G1 and G5 (the other vouch-eligible multi-item scenarios) were re-run at HEAD to confirm no regression: both opened with clean substantive claims, and G5's derived counts (Einstein 3, 8 authors, 10 quotes on page 1) were verified against the crawled artifact and reconcile. **Full suite 8/8 at HEAD.**
 
+### Round 13 — content-type handling and hint accuracy
+
+Probing input shapes the e2e suite never used surfaced two real defects:
+
+- **A PDF URL was processed as HTML.** An arXiv PDF ran through the markdown pipeline and produced **1,982,087 chars of binary mojibake saved at exit 0** — garbage reported as success, the exact failure this tool exists to prevent. `fetch` now reads the `Content-Type` header (available on both tiers) and refuses definitively non-page types (PDF, images including SVG, audio/video, office documents, archives) with a clear exit-4 message and no file written. XML and JSON are deliberately allowed through as text. Japanese and Chinese pages were checked in passing and are clean UTF-8 — the encoding handling is genuinely general, not Korean-tuned, so that was *not* a gap.
+- **A dead domain and a malformed URL both got a Cloudflare-flavoured hint** ("raise --timeout … anti-bot vendor"), advice with nothing to do with the actual failure. Hints are now matched to the underlying error: a DNS non-resolution says "check the URL for a typo, this is not a bot wall"; a refused connection says the host may be down; only a genuine wall keeps the anti-bot hint.
+
+Unit tests 41→47.
+
 ### Round 6 — the layer re-decision: why grounding stays advisory, measured
 
 Grounding was the one behaviour that failed repeatedly (three times, in three different surface forms) before prose finally held it. The harness-creator feedback-routing table prescribes exactly one move for that pattern: *"An always-required rule gets ignored → strengthen the phrasing. If that's still not enough after a re-run, escalate it to a hook — this is a real re-decision about which layer the requirement belongs in."* The original **no hooks** decision predates all of this evidence and was argued on safety grounds (fetching is read-only), not on grounding. So the re-decision was actually evaluated rather than assumed.
