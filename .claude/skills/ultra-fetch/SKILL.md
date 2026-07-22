@@ -56,6 +56,8 @@ Every run returns two cheap signals: the **stderr line** (which access tier reso
 
 **Crawling: read `manifest.json` before you trust the crawl.** The titles tell you where the page budget actually went. If they cluster on boilerplate — pinned notices, terms-of-service, a sister domain — the traversal spent its cap on site furniture and the real content is still unvisited. This happens on any site that pins links above the fold, forum boards especially. Re-aim with `--include`/`--exclude`, or drop to the pattern below.
 
+**`--max-depth` is a ceiling, not a target — and `max_depth_reached: 1` is usually correct.** Depth is hop-count from the start URL, and a nav sidebar or tag cloud links most of a site's pages directly from the front page, so they are genuinely depth 1. A crawl that stops at depth 1 has almost certainly covered the site's breadth, not failed to descend; `--max-pages` is what actually binds. Don't report a shallow crawl as deficient or keep raising `--max-depth` to fix it — judge completeness by `pages`/`partial`/`stop_reason`, and reach for real depth only on a site whose content is genuinely chained (sequential pagination with no full pager).
+
 **When a crawl keeps missing, invert it.** `map` (or a `--no-filter` fetch of the listing page) to see what URLs exist, pick the handful that matter, then `fetch` those individually. This is more precise *and* cheaper than crawling and discarding, and it is the better default whenever the target is a board, an index, or any site where you can recognize the right pages by their URLs or titles.
 
 ## Every number you state must come from a file you opened
