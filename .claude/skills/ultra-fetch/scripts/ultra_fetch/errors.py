@@ -51,6 +51,19 @@ class EmptyContentError(UltraFetchError):
     exit_code = 4
 
 
+class UnsupportedContentError(UltraFetchError):
+    """The URL was reached but is not a web page -- a PDF, an image, a binary.
+
+    Distinct from EmptyContentError (a real HTML page that yielded no text):
+    here the bytes are a different format entirely, so there is nothing to
+    convert and retrying with different flags cannot help. Shares exit 4 with
+    EmptyContentError because the caller's reaction is the same shape -- this URL
+    won't give you readable markdown -- but the message says why precisely.
+    """
+
+    exit_code = 4
+
+
 class NoResultsError(UltraFetchError):
     """A crawl or map completed but found nothing. Honest zero, not an error."""
 
